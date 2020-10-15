@@ -9,7 +9,7 @@
             "type": "string",
             "defaultValue": "linksTg",
             "minLength": 1,
-            "maxLength": 6,
+            "maxLength": 8,
             "metadata": {
                 "description": "This is the prefix for the Storage Account names that will be created"
             }
