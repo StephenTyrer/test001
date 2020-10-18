@@ -1,0 +1,120 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        //
+        // parameters for the storage accounts //
+        //
+        "param_VM_StorageAccount_Prefix": {
+            "type": "string",
+            "defaultValue": "stgscript",
+            "minLength": 1,
+            "maxLength": 10,
+            "metadata": {
+                "description": "This is the prefix for the Storage Account names that will be created"
+            }
+        },
+        "param_VM_StorageAccount_Type": {
+            "type": "string",
+            "defaultValue": "Standard_LRS",
+            "metadata": {
+                "description": "This is the type of the Storage Account that will be created"
+            }
+        },
+        "param_VM_StorageAccount_Container_Names": {
+            "type": "array",
+            "defaultValue": [
+                "logs",
+                "scripts",
+                "deployments"
+            ],
+            "metadata": {
+                "description": "These are the container name prefix where files can be stored"
+            }            
+        }
+    },
+    "functions": [],
+    //
+    // variables
+    //
+    "variables": {
+        //
+        // variables for the storage accounts //
+        //
+        // this style means the variable name is unique to the resource group, with the
+        // resource [later] appending the copyindex number for further uniqueness if required
+        "var_VM_StorageAccount_Name": "[tolower(concat(parameters('param_VM_StorageAccount_Prefix'),uniqueString(resourceGroup().id)))]"
+    },
+    //
+    // resources
+    //
+    "resources": [
+        //
+        // create the storage accounts
+        //
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "2019-06-01",
+            "name": "[variables('var_VM_StorageAccount_Name')]",            
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "displayName": "[variables('var_VM_StorageAccount_Name')]"
+            },
+            "sku": {
+                "name": "[parameters('param_VM_StorageAccount_Type')]"
+            },
+            "properties": {
+                "metadata": {
+                "description": "This is the Storage Account that will be created"
+                }
+            },
+            "kind": "Storage"
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(variables('var_VM_StorageAccount_Name'),'/default/',parameters('param_VM_StorageAccount_Container_Names')[copyIndex('copy_VM_StorageContainers')])]",
+            "copy": {
+                "name": "copy_VM_StorageContainers",
+                "count": "[length(parameters('param_VM_StorageAccount_Container_Names'))]"
+            },
+            "properties": {
+                "metadata": {
+                "description": "These are the container names where files can be stored"
+                }
+            },            
+            "dependson": [
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('var_VM_StorageAccount_Name'))]"
+            ]
+        }
+    ],
+    "outputs": {
+        //
+        // these values are only generated after a successful
+        // deployment - otherwise they are empty
+        // 
+        //
+        // count:
+        // use length [of a parameter array] to determine the number of resources to output
+        //       
+        // input:
+        // do not use the copyindex name in outputs
+        // use reference(resourceid... to reference the runtime values
+        // use use reference(resourceid... to drill down to ".property.subproperty"
+        // use the same offset for the copyindex() as in resources.name
+        //
+        "output_myStorageAccount": {
+            "type": "string",
+            "value": "[reference(resourceId('Microsoft.Storage/storageAccounts',variables('var_VM_StorageAccount_Name'))).primaryEndpoints.blob]"
+        },
+         "output_myStorageAccountContainer": {
+            "type": "array",
+            "copy": {
+                "count": "[length(parameters('param_VM_StorageAccount_Container_Names'))]",
+                "input": "[concat(variables('var_VM_StorageAccount_Name'),'/default/',parameters('param_VM_StorageAccount_Container_Names')[copyIndex()])]"               
+            }
+         }
+    }
+}
+
+
